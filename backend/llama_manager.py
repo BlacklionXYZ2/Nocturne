@@ -21,8 +21,11 @@ import subprocess
 import httpx
 from typing import Optional, Dict, Any, List
 from pathlib import Path
+import yaml
 
 from .params import LlamaServerParams
+
+CONFIG_PATH = Path("config.yaml")
 
 
 class LlamaServerManager:
