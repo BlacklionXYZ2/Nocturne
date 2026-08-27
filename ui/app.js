@@ -83,6 +83,28 @@ function handleWebSocketMessage(msg) {
     appendTerminalToolResult(msg.data);
   } else if (msg.type === "status") {
     appendTerminalStatus(msg.data);
+  } else if (msg.type === "final_answer") {
+    if (msg.data && msg.data.trim()) {
+      appendTerminalAnswer(msg.data);
+    }
+    const btn = document.getElementById("btn-dispatch-agent");
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Execute Task</span>`;
+    }
+    const statusLabel = document.getElementById("agent-status-label");
+    if (statusLabel) {
+      statusLabel.innerText = "Agent Idle";
+      statusLabel.className = "text-[11px] font-mono text-slate-400";
+    }
+    const schedBtn = document.getElementById("btn-run-cycle-now");
+    if (schedBtn) {
+      schedBtn.disabled = false;
+      schedBtn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Run Self-Prompt Cycle Now</span>`;
+    }
+    initLucide();
+    loadTaskQueue();
+    refreshStatus();
   }
 }
 
@@ -229,8 +251,10 @@ async function saveSchedulerSettings() {
 
 async function runAutonomousCycleNow() {
   const btn = document.getElementById("btn-run-cycle-now");
-  btn.disabled = true;
-  btn.innerText = "Running Cycle...";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Running Cycle...";
+  }
 
   try {
     appendTerminalStatus("⚡ Starting manual Autonomous Self-Prompting cycle...");
@@ -239,19 +263,18 @@ async function runAutonomousCycleNow() {
     const res = await fetch("/api/scheduler/run_now", { method: "POST" });
     const data = await res.json();
 
-    if (data.status === "completed") {
-      appendTerminalStatus(`✓ Autonomous cycle completed in ${data.turns_taken} turns.`);
+    if (data.status === "started") {
+      appendTerminalStatus("⚡ Autonomous cycle initiated in background. Streaming live reasoning below:");
     } else {
       appendTerminalStatus(`Autonomous cycle status: ${data.message || data.status}`);
     }
   } catch (e) {
-    appendTerminalStatus(`❌ Autonomous cycle error: ${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Run Self-Prompt Cycle Now</span>`;
+    appendTerminalStatus(`❌ Could not trigger cycle: ${e.message}`);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Run Self-Prompt Cycle Now</span>`;
+    }
     initLucide();
-    refreshScheduler();
-    loadTaskQueue();
   }
 }
 
@@ -294,8 +317,10 @@ async function dispatchAgentTask() {
 
   const maxTurns = parseInt(document.getElementById("agent-max-turns").value) || 15;
   const btn = document.getElementById("btn-dispatch-agent");
-  btn.disabled = true;
-  btn.innerText = "Executing...";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Executing...";
+  }
 
   const statusLabel = document.getElementById("agent-status-label");
   if (statusLabel) {
@@ -313,23 +338,30 @@ async function dispatchAgentTask() {
       body: JSON.stringify({ prompt: prompt, max_turns: maxTurns })
     });
 
-    const data = await res.json();
-    if (res.ok) {
-      appendTerminalAnswer(data.final_answer);
-    } else {
+    if (!res.ok) {
+      const data = await res.json();
       appendTerminalStatus(`❌ Execution Error: ${data.detail || "Unknown error"}`);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Execute Task</span>`;
+      }
+      if (statusLabel) {
+        statusLabel.innerText = "Agent Idle";
+        statusLabel.className = "text-[11px] font-mono text-slate-400";
+      }
+      initLucide();
     }
   } catch (e) {
     appendTerminalStatus(`❌ Network / Server Error: ${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Execute Task</span>`;
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Execute Task</span>`;
+    }
     if (statusLabel) {
       statusLabel.innerText = "Agent Idle";
       statusLabel.className = "text-[11px] font-mono text-slate-400";
     }
     initLucide();
-    refreshStatus();
   }
 }
 

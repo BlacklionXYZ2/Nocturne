@@ -174,11 +174,13 @@ async def update_scheduler(payload: Dict[str, Any] = Body(...)):
 
 @app.post("/api/scheduler/run_now")
 async def run_scheduler_now(payload: Optional[Dict[str, Any]] = Body(None)):
-    """Manually triggers an autonomous self-prompting cycle immediately."""
+    """Manually triggers an autonomous self-prompting cycle asynchronously."""
     custom_prompt = payload.get("prompt") if payload else None
     _log_app("Triggering Autonomous Self-Prompt Cycle Now", custom_prompt or "Standard task_queue prompt")
-    result = await scheduler.run_cycle_now(custom_prompt=custom_prompt)
-    return result
+    
+    # Launch in background task so mobile HTTP connections return immediately and WebSocket streams progress
+    asyncio.create_task(scheduler.run_cycle_now(custom_prompt=custom_prompt))
+    return {"status": "started", "message": "Autonomous cycle initiated in background."}
 
 
 # ------------------------------------------------------------------------------
@@ -193,7 +195,7 @@ class AgentTaskRequest(BaseModel):
 
 @app.post("/api/agent/run")
 async def run_agent_task(req: AgentTaskRequest):
-    """Executes a multi-turn autonomous agent task."""
+    """Executes a multi-turn autonomous agent task asynchronously."""
     _log_app("Dispatching Agent Task", f"Prompt: {req.prompt[:80]}... (Max turns: {req.max_turns})")
     llama_mgr.mark_activity()
     awake = await asyncio.to_thread(llama_mgr.ensure_awake)
@@ -204,15 +206,20 @@ async def run_agent_task(req: AgentTaskRequest):
     async def _on_event(event_type: str, data: Any):
         await broadcaster.emit(event_type, data)
 
-    result = await agent_engine.run_task(
-        prompt=req.prompt,
-        max_turns=req.max_turns or 15,
-        on_event=_on_event
-    )
+    async def _run_worker():
+        try:
+            res = await agent_engine.run_task(
+                prompt=req.prompt,
+                max_turns=req.max_turns or 15,
+                on_event=_on_event
+            )
+            _log_app("Agent Task Finished", f"Status: {res.get('status')} | Turns: {res.get('turns_taken')}")
+            llama_mgr.mark_activity()
+        except Exception as e:
+            await broadcaster.emit("status", f"❌ Task Error: {e}")
 
-    _log_app("Agent Task Finished", f"Status: {result.get('status')} | Turns: {result.get('turns_taken')}")
-    llama_mgr.mark_activity()
-    return result
+    asyncio.create_task(_run_worker())
+    return {"status": "started", "message": "Task execution started."}
 
 
 @app.post("/api/agent/reset")
@@ -432,8 +439,17 @@ async def websocket_endpoint(websocket: WebSocket):
     await broadcaster.connect(websocket)
     try:
         while True:
-            await websocket.receive_text()
+            try:
+                await asyncio.wait_for(websocket.receive_text(), timeout=15.0)
+            except asyncio.TimeoutError:
+                # Send periodic keepalive ping to prevent mobile/Cloudflare timeout
+                try:
+                    await websocket.send_json({"type": "ping", "data": "heartbeat"})
+                except Exception:
+                    break
     except WebSocketDisconnect:
+        await broadcaster.disconnect(websocket)
+    except Exception:
         await broadcaster.disconnect(websocket)
 
 
