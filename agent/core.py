@@ -84,8 +84,8 @@ class LocalAgent:
         # Persistent multi-turn conversation session history
         self.chat_history: List[Dict[str, Any]] = []
         self.current_session_logger: Optional[SessionLogger] = None
-        self._max_history_turns = 20
-        self._context_budget_tokens = 16384
+        self._max_history_turns = 30
+        self._context_budget_tokens = 65536
 
     def reset_session(self):
         """Archives the current session and clears conversational history."""
@@ -111,30 +111,30 @@ class LocalAgent:
 
     def _compact_messages_if_needed(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Prunes verbose historical tool outputs and compacts earlier turns when context reaches ~70%.
+        Prunes verbose historical tool outputs only when context approaches full budget (e.g. > 80%).
         """
         current_tokens = _estimate_tokens(messages)
-        threshold = int(self._context_budget_tokens * 0.70)
+        threshold = int(self._context_budget_tokens * 0.80)
 
         if current_tokens <= threshold or len(messages) < 3:
             return messages
 
-        print(f"[Nocturne Compactor] Active tokens ({current_tokens}) crossed threshold ({threshold}). Compacting older turns...", flush=True)
+        print(f"[Nocturne Compactor] Active tokens ({current_tokens}) crossed 80% threshold ({threshold}). Compacting older historical turns...", flush=True)
 
         compacted = [messages[0]]  # Preserve master system prompt
 
-        # Prune verbose tool outputs from turns older than the last 2 messages
-        recent_boundary = max(1, len(messages) - 2)
+        # Prune verbose tool outputs from turns older than the last 4 messages
+        recent_boundary = max(1, len(messages) - 4)
         for idx in range(1, recent_boundary):
             msg = messages[idx]
             if msg.get("role") == "tool":
                 content = msg.get("content", "")
-                if len(content) > 300:
+                if len(content) > 2000:
                     compacted.append({
                         "role": "tool",
                         "tool_call_id": msg.get("tool_call_id", ""),
                         "name": msg.get("name", ""),
-                        "content": content[:300] + f"\n... [Output compacted from {len(content)} characters by Nocturne]"
+                        "content": content[:2000] + f"\n... [Historical output compacted from {len(content)} characters by Nocturne]"
                     })
                 else:
                     compacted.append(msg)
@@ -293,8 +293,9 @@ class LocalAgent:
                             await broadcaster.emit("status", f"Executing {name}...")
                             result_str = await asyncio.to_thread(registry.execute, name, args)
 
-                        if len(result_str) > 4000:
-                            result_str = result_str[:4000] + "\n... [Output truncated by Nocturne to preserve context]"
+                        max_tool_chars = 32000
+                        if len(result_str) > max_tool_chars:
+                            result_str = result_str[:max_tool_chars] + f"\n... [Output truncated from {len(result_str)} characters by Nocturne to preserve context headroom]"
 
                         tool_result_event = {"tool": name, "result": result_str, "call_id": call_id}
                         await broadcaster.emit("tool_result", tool_result_event)
