@@ -1,0 +1,77 @@
+/* ==============================================================================
+   Local Agent & VTuber Management Center - UI Stylesheet
+   ============================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg-main: #0b0f19;
+  --bg-card: #131b2e;
+  --bg-card-hover: #1c2742;
+  --border-color: #23304d;
+  --accent-cyan: #38bdf8;
+  --accent-purple: #a855f7;
+  --accent-emerald: #10b981;
+  --accent-rose: #f43f5e;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  user-select: none;
+  overflow-x: hidden;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Glassmorphism & Card styling */
+.glass-panel {
+  background: rgba(19, 27, 46, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(168, 85, 247, 0.15));
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+/* Streaming and Activity Animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.live-pulse {
+  animation: pulse-subtle 2s infinite;
+}
+
+/* Markdown Textarea */
+.markdown-editor {
+  tab-size: 2;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-x: auto;
+}

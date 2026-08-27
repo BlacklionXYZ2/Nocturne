@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nocturne — Autonomous Local Agent Harness</title>
+  
+  <!-- Tailwind CSS, Lucide Icons & QRCode.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              500: '#14b8a6',
+              600: '#0d9488',
+              900: '#134e4a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+
+  <!-- =========================================================================
+       TOP NAVIGATION BAR & GPU POWER/THERMAL TELEMETRY
+       ========================================================================= -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <i data-lucide="moon" class="w-4 h-4 text-cyan-300"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-wide text-white flex items-center gap-2">
+            NOCTURNE
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 font-mono">Agent: Auri</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center space-x-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+        <button onclick="switchTab('agent')" id="tab-btn-agent" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-slate-800 shadow transition flex items-center gap-1.5">
+          <i data-lucide="terminal" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Agent Ops</span>
+        </button>
+        <button onclick="switchTab('scheduler')" id="tab-btn-scheduler" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+          <i data-lucide="clock" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>Scheduler &amp; Queue</span>
+        </button>
+        <button onclick="switchTab('models')" id="tab-btn-models" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+          <i data-lucide="sliders" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>Model Studio</span>
+        </button>
+        <button onclick="switchTab('memory')" id="tab-btn-memory" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-teal-400"></i>
+          <span>Memory</span>
+        </button>
+        <button onclick="switchTab('conversations')" id="tab-btn-conversations" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+          <i data-lucide="archive" class="w-3.5 h-3.5 text-purple-400"></i>
+          <span>Logs</span>
+        </button>
+        <button onclick="switchTab('integrations')" id="tab-btn-integrations" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+          <i data-lucide="globe" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Moltbook &amp; 1F916</span>
+        </button>
+      </nav>
+
+      <!-- GPU Power & Mobile Companion Actions -->
+      <div class="flex items-center space-x-2">
+        <button onclick="openMobileModal()" title="Mobile Companion & QR Pairing" class="px-2.5 py-1 text-xs rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800 transition flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span>Mobile QR</span>
+        </button>
+        <div id="gpu-power-badge" class="px-2.5 py-1 rounded-full text-xs font-mono flex items-center gap-1.5 bg-slate-900 border border-slate-800 text-slate-400">
+          <span id="gpu-power-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+          <span id="gpu-power-text">Checking GPU...</span>
+        </div>
+        <button onclick="toggleGpuPower()" id="btn-gpu-toggle" title="Sleep or Wake GPU" class="px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1">
+          <i data-lucide="power" class="w-3.5 h-3.5"></i>
+          <span id="btn-gpu-toggle-text">Sleep GPU</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       MAIN CONTENT CONTAINER
+       ========================================================================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 space-y-4">
+
+    <!-- -----------------------------------------------------------------------
+         TAB 1: AGENT OPS (MISSION CONTROL)
+         ----------------------------------------------------------------------- -->
+    <div id="tab-agent" class="tab-content space-y-4">
+      
+      <!-- Top Control Bar -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        
+        <!-- Quick Status Card -->
+        <div class="glass-panel p-4 rounded-xl flex items-center justify-between border-slate-800">
+          <div>
+            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Active Model on GPU</p>
+            <p id="agent-active-model-name" class="text-xs font-mono font-semibold text-cyan-400 truncate mt-0.5">Loading...</p>
+          </div>
+          <div class="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-800 flex items-center justify-center">
+            <i data-lucide="hard-drive" class="w-4 h-4 text-cyan-400"></i>
+          </div>
+        </div>
+
+        <!-- GPU Power Management Card -->
+        <div class="glass-panel p-4 rounded-xl flex items-center justify-between border-slate-800">
+          <div>
+            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">GPU Power &amp; Thermal</p>
+            <p id="agent-gpu-power-desc" class="text-xs font-mono text-emerald-400 mt-0.5">Auto-Sleep Active (18W)</p>
+          </div>
+          <div class="w-8 h-8 rounded-lg bg-emerald-950/60 border border-emerald-800 flex items-center justify-center">
+            <i data-lucide="zap" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+        </div>
+
+        <!-- Harness Architecture Card -->
+        <div class="glass-panel p-4 rounded-xl flex items-center justify-between border-slate-800">
+          <div>
+            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Harness Recovery</p>
+            <p class="text-xs font-mono text-indigo-300 mt-0.5">DSML &amp; Qwen Fallback Active</p>
+          </div>
+          <div class="w-8 h-8 rounded-lg bg-indigo-950/60 border border-indigo-800 flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-4 h-4 text-indigo-400"></i>
+          </div>
+        </div>
+
+        <!-- Available Tools Card -->
+        <div class="glass-panel p-4 rounded-xl flex items-center justify-between border-slate-800">
+          <div>
+            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Loaded Local Tools</p>
+            <p class="text-xs font-mono text-teal-400 mt-0.5">11 Tools (PowerShell, FS, Web)</p>
+          </div>
+          <div class="w-8 h-8 rounded-lg bg-teal-950/60 border border-teal-800 flex items-center justify-center">
+            <i data-lucide="wrench" class="w-4 h-4 text-teal-400"></i>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Agent Task Prompt Input Box -->
+      <div class="glass-panel p-4 rounded-xl space-y-3 border-cyan-500/20 shadow-lg">
+        <div class="flex items-center justify-between">
+          <label for="agent-task-input" class="text-xs font-semibold text-white flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-cyan-400"></i>
+            Dispatch an Agentic Task
+          </label>
+          <span class="text-[11px] text-slate-400">Auto-wakes GPU if sleeping &bull; Truncates terminal outputs</span>
+        </div>
+        
+        <div class="relative">
+          <textarea id="agent-task-input" rows="3" placeholder="e.g. Search for *.py files in Desktop\local-agent, inspect tools/base.py, and formulate next steps..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono resize-none"></textarea>
+        </div>
+
+        <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center space-x-2 text-xs text-slate-400">
+            <span>Max ReAct Turns:</span>
+            <input type="number" id="agent-max-turns" min="1" max="30" value="15" class="w-14 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-xs text-cyan-400 font-mono text-center">
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="resetAgentSession()" title="Start a fresh conversation and archive current session" class="px-3 py-1.5 text-xs text-amber-400 hover:text-amber-300 bg-slate-900 border border-amber-900/50 hover:border-amber-700/80 rounded-lg transition flex items-center gap-1">
+              <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+              <span>New Chat</span>
+            </button>
+            <button onclick="clearAgentTerminal()" class="px-3 py-1.5 text-xs text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-lg transition">Clear Feed</button>
+            <button onclick="dispatchAgentTask()" id="btn-dispatch-agent" class="px-5 py-1.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-semibold rounded-lg transition shadow-md shadow-cyan-500/20 flex items-center gap-1.5">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i>
+              <span>Execute Task</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Live Execution Feed / Terminal -->
+      <div class="glass-panel rounded-xl flex flex-col h-[520px] overflow-hidden border-slate-800">
+        <div class="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="text-xs font-mono font-semibold text-slate-200">Execution Feed &amp; Thought Scratchpad</span>
+          </div>
+          <span id="agent-status-label" class="text-[11px] font-mono text-slate-400">Agent Idle</span>
+        </div>
+        <div id="agent-terminal-output" class="flex-1 p-4 overflow-y-auto font-mono text-xs text-slate-300 space-y-3 bg-slate-950">
+          <p class="text-slate-500 text-[11px]">(Ready. Enter a task above or trigger an autonomous scheduled cycle to begin.)</p>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- -----------------------------------------------------------------------
+         TAB 2: AUTONOMOUS SCHEDULER & TASK QUEUE
+         ----------------------------------------------------------------------- -->
+    <div id="tab-scheduler" class="tab-content hidden space-y-4">
+      
+      <!-- Scheduler Status & Control Banner -->
+      <div class="glass-panel p-6 rounded-2xl border-emerald-500/30 bg-gradient-to-br from-slate-900 via-[#13221c] to-[#121829] space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <i data-lucide="clock" class="w-5 h-5 text-emerald-400"></i>
+            </div>
+            <div>
+              <h2 class="text-base font-semibold text-white">Autonomous Self-Prompting Engine</h2>
+              <p class="text-xs text-slate-300">Allows the local agent to wake, prompt itself, execute tasks, update markdown memory, and sleep the GPU automatically.</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-3">
+            <button onclick="runAutonomousCycleNow()" id="btn-run-cycle-now" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5">
+              <i data-lucide="play" class="w-3.5 h-3.5"></i>
+              <span>Run Self-Prompt Cycle Now</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Schedule Settings Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          
+          <div class="bg-black/40 p-4 rounded-xl border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-300">Self-Prompting Interval</span>
+              <input type="checkbox" id="sched-enable-toggle" onchange="saveSchedulerSettings()" class="w-4 h-4 accent-emerald-500 rounded">
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" id="sched-interval-mins" min="5" max="1440" value="60" onchange="saveSchedulerSettings()" class="w-20 bg-slate-900 border border-slate-800 text-emerald-400 font-mono text-xs px-2 py-1 rounded">
+              <span class="text-xs text-slate-400">minutes between cycles</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Triggers self-prompt reasoning loop periodically.</p>
+          </div>
+
+          <div class="bg-black/40 p-4 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-semibold text-slate-300">GPU Power Protection</span>
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-400">Sleep GPU immediately after cycle:</span>
+              <input type="checkbox" id="sched-sleep-after" checked onchange="saveSchedulerSettings()" class="w-4 h-4 accent-emerald-500 rounded">
+            </div>
+            <p class="text-[11px] text-slate-500">Unloads model to eliminate 330W power draw and prevent summer heat.</p>
+          </div>
+
+          <div class="bg-black/40 p-4 rounded-xl border border-slate-800 space-y-2">
+            <span class="text-xs font-semibold text-slate-300">Next Scheduled Run</span>
+            <p id="sched-next-run-text" class="text-xs font-mono text-cyan-400">Disabled</p>
+            <p class="text-[11px] text-slate-500">Status: <span id="sched-status-label" class="text-slate-300 font-mono">Idle</span></p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Task Queue (task_queue.md) Live Editor -->
+      <div class="glass-panel p-5 rounded-xl space-y-3 border-slate-800">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xs font-semibold text-white flex items-center gap-1.5">
+              <i data-lucide="list-todo" class="w-4 h-4 text-emerald-400"></i>
+              Autonomous Task Queue (<code class="text-slate-300">memory/task_queue.md</code>)
+            </h3>
+            <p class="text-xs text-slate-400">Leave pending tasks here for the agent to pick up, execute, and mark completed while you are away.</p>
+          </div>
+          <button onclick="saveTaskQueueMarkdown()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold rounded-lg text-white flex items-center gap-1.5 shadow">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i> Save Task Queue
+          </button>
+        </div>
+        <textarea id="task-queue-editor" class="w-full h-80 bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-emerald-500"></textarea>
+      </div>
+
+    </div>
+
+
+    <!-- -----------------------------------------------------------------------
+         TAB 3: MODEL & HARDWARE PARAMETER STUDIO
+         ----------------------------------------------------------------------- -->
+    <div id="tab-models" class="tab-content hidden space-y-4">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Step 1: Model Selector (7 Columns) -->
+        <div class="lg:col-span-7 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-cyan-600 text-white flex items-center justify-center text-xs">1</span>
+                Discovered Models in Desktop\Models
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5">Click any model card to inspect architecture DNA and auto-tune parameters.</p>
+            </div>
+            <button onclick="refreshModels()" class="text-xs text-cyan-400 hover:underline flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh
+            </button>
+          </div>
+          <div id="model-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[580px] overflow-y-auto p-1">
+            <p class="text-xs text-slate-500">Scanning models...</p>
+          </div>
+        </div>
+
+        <!-- Step 2: Parameter Studio for Selected Model (5 Columns) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="glass-panel p-5 rounded-xl space-y-4 border-cyan-500/30">
+            <div class="border-b border-slate-800 pb-3 flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</span>
+                  <h3 class="text-xs font-semibold text-white">Parameters &amp; VRAM Profiler</h3>
+                </div>
+                <p id="selected-model-banner" class="text-xs font-mono text-cyan-400 mt-1 truncate">No model selected yet</p>
+              </div>
+              <button type="button" onclick="autoTuneIdealEnvironment()" class="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] font-medium rounded-lg shadow flex items-center gap-1">
+                <i data-lucide="sparkles" class="w-3 h-3"></i> Auto-Tune
+              </button>
+            </div>
+
+            <!-- Model Architecture DNA Card -->
+            <div id="model-dna-card" class="p-3 rounded-lg bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px]">
+              <div class="flex justify-between">
+                <span class="text-slate-400">Architecture &amp; MoE:</span>
+                <span id="dna-arch" class="font-mono text-cyan-300">Scanning...</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Layers &amp; GQA Heads:</span>
+                <span id="dna-gqa" class="font-mono text-slate-200">--</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Native Context Limit:</span>
+                <span id="dna-native-ctx" class="font-mono text-emerald-400">--</span>
+              </div>
+            </div>
+
+            <!-- Live VRAM Footprint Meter (RX 9070 XT 16GB) -->
+            <div class="p-3 rounded-lg bg-black/40 border border-slate-800 space-y-1.5">
+              <div class="flex justify-between text-xs font-mono">
+                <span class="text-slate-300">Estimated VRAM Usage:</span>
+                <span id="vram-meter-text" class="text-cyan-400 font-semibold">-- / 16.3 GB</span>
+              </div>
+              <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div id="vram-meter-bar" class="h-full bg-cyan-400 transition-all duration-300" style="width: 30%"></div>
+              </div>
+              <p id="vram-meter-status" class="text-[10px] text-slate-400">Optimal fit in dedicated GPU memory</p>
+            </div>
+
+            <!-- Speculative Decoding / Draft Model Companion Notice (MTP / dflash) -->
+            <div id="draft-model-box" class="hidden p-3 rounded-lg bg-indigo-950/50 border border-indigo-700/50 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
+                  <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+                  Speculative Draft Model Detected
+                </span>
+                <input type="checkbox" id="param-enable-draft" checked class="w-4 h-4 accent-indigo-500 rounded">
+              </div>
+              <p id="draft-model-name" class="text-[11px] font-mono text-slate-300 truncate">dflash / MTP GGUF</p>
+              <p class="text-[10px] text-slate-400">Accelerates token generation via speculative decoding (--model-draft).</p>
+            </div>
+
+            <!-- Context Window Size -->
+            <div>
+              <div class="flex justify-between items-center text-xs mb-1">
+                <span class="text-slate-300">Context Window (-c)</span>
+                <div class="flex items-center gap-1">
+                  <input type="number" id="param-ctx-number" min="512" max="1048576" step="1024" value="32768" oninput="syncCtxFromNumber()" class="w-20 bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-right font-mono text-cyan-400 text-xs focus:outline-none focus:border-cyan-500">
+                  <span class="text-slate-400 text-[11px]">tokens</span>
+                </div>
+              </div>
+              <input type="range" id="param-ctx-size" min="2048" max="262144" step="4096" value="32768" oninput="syncCtxFromSlider()" class="w-full accent-cyan-500">
+              <div class="flex gap-1.5 pt-1 text-[10px]">
+                <button type="button" onclick="setCtxPreset(8192)" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800">8k</button>
+                <button type="button" onclick="setCtxPreset(16384)" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800">16k</button>
+                <button type="button" onclick="setCtxPreset(32768)" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-800">32k</button>
+                <button type="button" onclick="setCtxPreset(65536)" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800">64k</button>
+                <button type="button" onclick="setCtxPreset(131072)" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800">128k</button>
+                <button type="button" onclick="setCtxPreset(262144)" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800">256k</button>
+              </div>
+            </div>
+
+            <!-- GPU Layers -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">GPU Layers (-ngl)</span>
+                <span id="val-ngl" class="text-cyan-400 font-mono">99 (All to ROCm0)</span>
+              </div>
+              <input type="range" id="param-ngl" min="0" max="99" step="1" value="99" oninput="updateParamDisplay()" class="w-full accent-cyan-500">
+            </div>
+
+            <!-- KV Cache Quantization -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">KV Cache K (-ctk)</label>
+                <select id="param-ctk" onchange="updateParamDisplay()" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-white font-mono">
+                  <option value="f16">f16 (Uncompressed)</option>
+                  <option value="q8_0" selected>q8_0 (Lossless 8-bit)</option>
+                  <option value="q5_1">q5_1 (High-Quality 5-bit)</option>
+                  <option value="q4_1">q4_1 (Asymmetric 4-bit - Better)</option>
+                  <option value="q4_0">q4_0 (Symmetric 4-bit)</option>
+                  <option value="iq4_nl">iq4_nl (Non-Linear 4-bit)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-slate-400 block mb-1">KV Cache V (-ctv)</label>
+                <select id="param-ctv" onchange="updateParamDisplay()" class="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-white font-mono">
+                  <option value="f16">f16 (Uncompressed)</option>
+                  <option value="q8_0" selected>q8_0 (Lossless 8-bit)</option>
+                  <option value="q5_1">q5_1 (High-Quality 5-bit)</option>
+                  <option value="q4_1">q4_1 (Asymmetric 4-bit - Better)</option>
+                  <option value="q4_0">q4_0 (Symmetric 4-bit)</option>
+                  <option value="iq4_nl">iq4_nl (Non-Linear 4-bit)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Flash Attention -->
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-xs text-slate-300">Flash Attention (-fa)</span>
+              <input type="checkbox" id="param-fa" checked class="w-4 h-4 accent-cyan-500 rounded">
+            </div>
+
+            <!-- Sampling Temperature -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Sampling Temperature</span>
+                <span id="val-temp" class="text-cyan-400 font-mono">0.15</span>
+              </div>
+              <input type="range" id="param-temp" min="0.0" max="1.5" step="0.05" value="0.15" oninput="updateParamDisplay()" class="w-full accent-cyan-500">
+            </div>
+
+            <!-- Top-P -->
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-slate-300">Top-P</span>
+                <span id="val-top-p" class="text-cyan-400 font-mono">0.90</span>
+              </div>
+              <input type="range" id="param-top-p" min="0.1" max="1.0" step="0.05" value="0.90" oninput="updateParamDisplay()" class="w-full accent-cyan-500">
+            </div>
+
+            <button onclick="launchSelectedModel()" id="btn-launch-model" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
+              <i data-lucide="play" class="w-4 h-4"></i>
+              <span>Load Selected Model onto GPU</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- -----------------------------------------------------------------------
+         TAB 4: IN-APP MARKDOWN MEMORY EDITOR
+         ----------------------------------------------------------------------- -->
+    <div id="tab-memory" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="book-open" class="w-4 h-4 text-teal-400"></i>
+            Long-Term Markdown Memory Editor
+          </h2>
+          <p class="text-xs text-slate-400">Core facts, task queue, and agent scratchpad are injected dynamically to eliminate token bloat.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="createNewMemoryFile()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs rounded-lg text-slate-300 flex items-center gap-1.5 border border-slate-700">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> New File
+          </button>
+          <button onclick="saveCurrentMemoryFile()" class="px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-xs font-medium rounded-lg text-white flex items-center gap-1.5 shadow">
+            <i data-lucide="save" class="w-3.5 h-3.5"></i> Save &amp; Sync
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="space-y-2">
+          <div class="text-xs font-medium text-slate-400 uppercase tracking-wider px-1">Memory Files</div>
+          <div id="memory-file-list" class="space-y-1"></div>
+        </div>
+        <div class="lg:col-span-3 glass-panel rounded-xl p-4 flex flex-col h-[560px]">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+            <span id="active-memory-filename" class="text-xs font-mono font-semibold text-teal-400">core_knowledge.md</span>
+            <span class="text-xs text-slate-500">Live Markdown Editor</span>
+          </div>
+          <textarea id="memory-editor-textarea" class="flex-1 w-full bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-200 leading-relaxed focus:outline-none focus:border-teal-500 markdown-editor"></textarea>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- -----------------------------------------------------------------------
+         TAB 5: CONVERSATION ARCHIVE & LOGS
+         ----------------------------------------------------------------------- -->
+    <div id="tab-conversations" class="tab-content hidden space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i data-lucide="archive" class="w-4 h-4 text-purple-400"></i>
+            Conversation Archives &amp; Task Transcripts
+          </h2>
+          <p class="text-xs text-slate-400">Automatically archived session logs stored locally in <code class="text-slate-300">conversations/</code>.</p>
+        </div>
+        <button onclick="refreshConversations()" class="text-xs text-purple-400 hover:underline flex items-center gap-1">
+          <i data-lucide="refresh-cw" class="w-3 h-3"></i> Refresh Logs
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="space-y-2">
+          <div id="conversations-list" class="space-y-1 max-h-[540px] overflow-y-auto"></div>
+        </div>
+        <div class="lg:col-span-2 glass-panel rounded-xl p-4 flex flex-col h-[540px]">
+          <div class="pb-3 border-b border-slate-800 mb-3 flex justify-between items-center">
+            <span id="viewing-conversation-title" class="text-xs font-mono text-purple-400">Select a log file to view</span>
+          </div>
+          <div id="conversation-viewer-content" class="flex-1 overflow-y-auto font-mono text-xs text-slate-300 whitespace-pre-wrap p-3 bg-slate-950 rounded-lg">
+            (Select a session log on the left to read its transcript)
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- -----------------------------------------------------------------------
+         TAB 6: MOLTBOOK & 1F916 AGENT INTEGRATIONS
+         ----------------------------------------------------------------------- -->
+    <div id="tab-integrations" class="tab-content hidden space-y-6">
+      <div class="glass-panel p-6 rounded-2xl border-amber-500/20 bg-gradient-to-br from-slate-900 via-[#1e1b15] to-[#121829] space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+            <i data-lucide="globe" class="w-5 h-5 text-amber-400"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-white">Social Agent Networks (Moltbook &amp; 1F916)</h2>
+            <p class="text-xs text-slate-400">Configure credentials for Moltbook and 1F916 social networks.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          
+          <!-- Moltbook Configuration -->
+          <div class="bg-black/40 p-5 rounded-xl border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-amber-300">1. Moltbook Integration</span>
+              <input type="checkbox" id="integ-moltbook-enabled" class="w-4 h-4 accent-amber-500 rounded">
+            </div>
+            <p class="text-[11px] text-slate-400">Autonomous feed reading and posting in submolt communities.</p>
+            <div class="space-y-1">
+              <label class="text-[11px] text-slate-400">Moltbook API Key / Bearer Token:</label>
+              <input type="password" id="integ-moltbook-key" placeholder="mb_live_..." class="w-full bg-slate-900 border border-slate-800 text-xs px-3 py-1.5 rounded text-slate-200 font-mono">
+            </div>
+          </div>
+
+          <!-- 1F916 Configuration -->
+          <div class="bg-black/40 p-5 rounded-xl border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-cyan-300">2. 1F916 Agent Network</span>
+              <input type="checkbox" id="integ-onef916-enabled" class="w-4 h-4 accent-cyan-500 rounded">
+            </div>
+            <p class="text-[11px] text-slate-400">Interaction with 1F916 AI agent council and community proposals.</p>
+            <div class="space-y-1">
+              <label class="text-[11px] text-slate-400">1F916 API Key:</label>
+              <input type="password" id="integ-onef916-key" placeholder="1f916_key_..." class="w-full bg-slate-900 border border-slate-800 text-xs px-3 py-1.5 rounded text-slate-200 font-mono">
+            </div>
+          </div>
+
+        </div>
+
+  </main>
+
+  <!-- =========================================================================
+       MOBILE COMPANION & CLOUDFLARE QR PAIRING MODAL
+       ========================================================================= -->
+  <div id="mobile-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+      
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-950 border border-indigo-700 flex items-center justify-center text-indigo-400">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Mobile Companion</h3>
+            <p class="text-[11px] text-slate-400">Pair your smartphone over secure Cloudflare tunnel</p>
+          </div>
+        </div>
+        <button onclick="closeMobileModal()" class="text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Tunnel Controls & QR Area -->
+      <div class="space-y-4 text-center">
+        <div id="tunnel-idle-state" class="space-y-3 py-4">
+          <p class="text-xs text-slate-300">
+            Launch a zero-config encrypted tunnel to monitor Nocturne and chat with Auri from your mobile phone anywhere on 5G/Wi-Fi.
+          </p>
+          <button onclick="startCloudflareTunnel()" id="btn-start-tunnel" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white text-xs font-semibold rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+            <span>Launch Mobile Tunnel &amp; Generate QR</span>
+          </button>
+        </div>
+
+        <div id="tunnel-active-state" class="space-y-4 hidden">
+          <div class="flex justify-center p-3 bg-white rounded-xl shadow-inner mx-auto w-fit">
+            <div id="qrcode-container"></div>
+          </div>
+
+          <div class="space-y-1.5 text-left bg-black/40 p-3 rounded-lg border border-slate-800">
+            <label class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Mobile Pair URL:</label>
+            <div class="flex items-center gap-2">
+              <input type="text" id="tunnel-url-display" readonly class="w-full bg-slate-950 border border-slate-800 text-[11px] px-2.5 py-1.5 rounded font-mono text-cyan-300 select-all">
+              <button onclick="copyTunnelUrl()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded border border-slate-700 transition">Copy</button>
+            </div>
+            <p class="text-[10px] text-emerald-400 flex items-center gap-1 mt-1">
+              <i data-lucide="shield-check" class="w-3 h-3"></i>
+              <span>Protected with 128-bit cryptographic session token</span>
+            </p>
+          </div>
+
+          <div class="flex gap-2">
+            <button onclick="stopCloudflareTunnel()" class="w-full py-2 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs font-medium rounded-xl transition flex items-center justify-center gap-1.5">
+              <i data-lucide="power-off" class="w-3.5 h-3.5"></i>
+              <span>Disconnect Tunnel</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="tunnel-loading-state" class="py-6 space-y-3 hidden">
+          <div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p class="text-xs text-slate-300">Spawning secure Cloudflare tunnel...</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

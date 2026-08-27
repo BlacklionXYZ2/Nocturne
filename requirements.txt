@@ -1,0 +1,26 @@
+# ==============================================================================
+# Local Agent & VTuber Management Center - Dependencies
+# ==============================================================================
+
+# Core Web Framework & ASGI Server
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+websockets>=13.0.0
+aiofiles>=24.1.0
+
+# Native Desktop Window UI (uses Windows Microsoft Edge WebView2)
+pywebview>=5.1
+
+# OpenAI API Client (used for interacting with llama-server)
+openai>=1.50.0
+
+# Data Validation, Settings & Serializers
+pydantic>=2.8.0
+pyyaml>=6.0.2
+
+# Terminal Output Formatting (for CLI mode)
+rich>=13.8.0
+
+# HTTP Requests & Utilities
+requests>=2.32.0
+httpx>=0.27.0

@@ -1,0 +1,62 @@
+# Nocturne Configuration Template
+# Copy this file to config.yaml and configure with your local paths and API keys
+
+server:
+  host: 127.0.0.1
+  port: 5000
+  llama_server_host: 127.0.0.1
+  llama_server_port: 8080
+  llama_server_path: "C:\\llama.cpp\\llama-server.exe"
+
+models_dir: "C:\\Users\\oscar\\Desktop\\Models"
+
+power_saver:
+  auto_sleep_enabled: true
+  idle_timeout_seconds: 120
+  active_power_estimate_watts: 330
+  idle_power_estimate_watts: 18
+
+autonomous_scheduler:
+  enabled: true
+  interval_minutes: 20
+  max_turns_per_cycle: 10
+  sleep_gpu_after_cycle: true
+  task_queue_file: "memory/task_queue.md"
+  prompt_template: |
+    You are running in Autonomous Self-Prompting mode.
+    1. Read your memory files (core_knowledge.md, personality.md, agent_thoughts.md) and task_queue.md.
+    2. Check if there are pending tasks in task_queue.md, or if you need to inspect local files, test code, or read Moltbook/1F916 feeds.
+    3. Take decisive action using your tools.
+    4. Update task_queue.md to mark completed tasks and log your thoughts/findings into agent_thoughts.md.
+
+default_model: "Qwen3.8-27B-UD-IQ4_XS.gguf"
+default_server_params:
+  ctx_size: 32768
+  n_gpu_layers: 99
+  device: "ROCm0"
+  flash_attn: true
+  cache_type_k: "q4_1"
+  cache_type_v: "q4_1"
+  batch_size: 1024
+  ubatch_size: 512
+
+agent:
+  max_react_turns: 15
+  system_prompt_prefix: |
+    You are an autonomous, high-capability AI coding and research assistant executing locally.
+    You have direct access to PowerShell, file operations, web browsing, and agent networks.
+  sampling:
+    temperature: 0.15
+    top_p: 0.9
+    min_p: 0.05
+    max_tokens: 4096
+
+integrations:
+  moltbook:
+    enabled: false
+    api_key: "YOUR_MOLTBOOK_API_KEY_HERE"
+    base_url: "https://moltbook.com/api/v1"
+  onef916:
+    enabled: false
+    api_key: "YOUR_1F916_SECRET_HERE"
+    base_url: "https://1f916.org/api/v1"

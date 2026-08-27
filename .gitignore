@@ -1,0 +1,34 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Sensitive Configuration & Keys
+config.yaml
+.env
+.env.*
+*.secret
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Local Session Logs & Conversations (Preserve privacy)
+conversations/*.md
+!conversations/.gitkeep
+logs/
+*.log
+
+# Scratch & Temporary Test Scripts
+scratch/
+tests/measure_qwen_memory.py
+
+# OS / Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
