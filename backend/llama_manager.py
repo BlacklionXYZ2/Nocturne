@@ -272,24 +272,23 @@ class LlamaServerManager:
         if not self.current_model_path:
             # Auto-resolve default model from config.yaml or scan directory
             from .model_scanner import ModelScanner
-            scanner = ModelScanner()
-            models = scanner.scan_models()
+            models_dir = r"C:\Users\oscar\Desktop\Models"
             cfg_default = "Qwen3.8-27B-UD-IQ4_XS.gguf"
             if CONFIG_PATH.is_file():
                 try:
                     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                         cfg = yaml.safe_load(f) or {}
                         cfg_default = cfg.get("default_model", cfg_default)
+                        models_dir = cfg.get("models_dir", models_dir)
                 except Exception:
                     pass
 
-            matched = None
-            for m in models:
-                if m.get("filename") == cfg_default or cfg_default.lower() in m.get("filename", "").lower():
-                    matched = m.get("path")
-                    break
-            if not matched and models:
-                matched = models[0].get("path")
+            scanner = ModelScanner(models_dir)
+            matched = scanner.resolve_model_path(cfg_default)
+            if not matched:
+                scanned = scanner.scan()
+                if scanned:
+                    matched = scanned[0].get("full_path")
 
             if matched:
                 self.current_model_path = matched
