@@ -106,11 +106,14 @@ class AutonomousScheduler:
 
             await broadcaster.emit("status", "🤖 [AUTONOMOUS] Executing self-directed reasoning step...")
 
-            # 3. Run agent ReAct loop
+            # 3. Run agent ReAct loop with real-time WebSocket streaming
+            async def _on_event(event_type: str, data: Any):
+                await broadcaster.emit(event_type, data)
+
             result = await self.agent.run_task(
                 prompt=self_prompt,
                 max_turns=self.max_turns,
-                on_event=None
+                on_event=_on_event
             )
 
             # 4. Power down / Sleep GPU to save electricity (330W -> 18W)
