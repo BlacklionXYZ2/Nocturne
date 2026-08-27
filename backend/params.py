@@ -79,14 +79,14 @@ class LlamaServerParams(BaseModel):
     # Batch Processing & CPU Threads
     # --------------------------------------------------------------------------
     batch_size: int = Field(
-        default=1024,
+        default=2048,
         ge=32,
         le=8192,
         description="Prompt evaluation batch size (-b / --batch-size)."
     )
 
     ubatch_size: int = Field(
-        default=512,
+        default=1024,
         ge=32,
         le=2048,
         description="Physical micro-batch size (-ub / --ubatch-size)."

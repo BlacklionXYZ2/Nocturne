@@ -132,6 +132,18 @@ class LlamaServerManager:
         with self._lock:
             self.stop()
 
+            # Ensure no stray orphan llama-server processes are hogging ROCm or port 8080
+            if sys.platform == "win32":
+                try:
+                    subprocess.run(
+                        ["taskkill", "/F", "/IM", "llama-server.exe"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                except Exception:
+                    pass
+                time.sleep(0.3)
+
             if not self.llama_server_path.is_file():
                 self._log(f"[APP ERROR] llama-server executable not found at: {self.llama_server_path}")
                 return False
