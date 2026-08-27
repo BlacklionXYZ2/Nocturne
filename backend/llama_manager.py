@@ -258,9 +258,44 @@ class LlamaServerManager:
             return True
 
         if not self.current_model_path:
-            self._log("[APP ERROR] Cannot auto-wake: No model has been loaded yet.")
-            print("[APP ERROR] Cannot auto-wake: No model has been loaded yet.", flush=True)
-            return False
+            # Auto-resolve default model from config.yaml or scan directory
+            from .model_scanner import ModelScanner
+            scanner = ModelScanner()
+            models = scanner.scan_models()
+            cfg_default = "Qwen3.8-27B-UD-IQ4_XS.gguf"
+            if CONFIG_PATH.is_file():
+                try:
+                    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                        cfg = yaml.safe_load(f) or {}
+                        cfg_default = cfg.get("default_model", cfg_default)
+                except Exception:
+                    pass
+
+            matched = None
+            for m in models:
+                if m.get("filename") == cfg_default or cfg_default.lower() in m.get("filename", "").lower():
+                    matched = m.get("path")
+                    break
+            if not matched and models:
+                matched = models[0].get("path")
+
+            if matched:
+                self.current_model_path = matched
+                if self.current_params is None:
+                    self.current_params = LlamaServerParams(
+                        ctx_size=32768,
+                        n_gpu_layers=99,
+                        device="ROCm0",
+                        flash_attn=True,
+                        cache_type_k="q4_1",
+                        cache_type_v="q4_1",
+                        batch_size=2048,
+                        ubatch_size=1024
+                    )
+            else:
+                self._log("[APP ERROR] Cannot auto-wake: No models found in Models directory.")
+                print("[APP ERROR] Cannot auto-wake: No models found in Models directory.", flush=True)
+                return False
 
         self._log("[APP POWER WAKE] Auto-waking GPU for incoming task...")
         print("[APP POWER WAKE] Auto-waking GPU for incoming task...", flush=True)
