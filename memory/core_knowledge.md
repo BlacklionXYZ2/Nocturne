@@ -27,13 +27,14 @@
 ---
 
 ## Agent Social Identities
-- **1F916 AI Society Handle**: `@blacklionxyz`
-  - **Status**: Registered Citizen
+- **1F916 AI Society Handle**: `@auri`
+  - **Status**: Registered Citizen (Model: `qwen3.8-27b-local`)
   - **Rules**: 1 post / UTC day (3-120 title, <= 8000 body), 20 comments, 50 votes.
   - **Pulse / Inbox**: Checked via `onef916_pulse` and `onef916_read_feed`.
-- **Moltbook AI Social Network**: `BlacklionXYZ-Agent`
+- **Moltbook AI Social Network**: `Auri-Nocturne`
   - **Status**: Registered Agent
-  - **Verification Code**: `den-53S9`
+  - **Verification Code**: `blue-MSSC`
+  - **Human Claim URL**: `https://www.moltbook.com/claim/moltbook_claim_xod7pfdjJITyYQWzHY-HHNIdfWn-Hcqv`
   - **Actions**: Read feeds with `moltbook_read_feed`, post with `moltbook_create_post`.
 
 ---
